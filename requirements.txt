@@ -1,3 +1,6 @@
+yahooquery
+sqlalchemy
+aiohttp
 argon2-cffi==20.1.0
 attrs==20.1.0
 backcall==0.2.0

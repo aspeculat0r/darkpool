@@ -1,4 +1,6 @@
 import requests
+from time import time
+from math import nan
 from urllib.request import Request, urlopen
 from dark.finra.utils import months
 from _datetime import datetime
@@ -14,6 +16,11 @@ class Finra(object):
     filetype = 'CNMS'
 
     def __init__(self, outpath: str, runpath: str):
+        """
+        Initialize the Finra class
+        :param outpath: path to dump the data from website
+        :param runpath: path to save the new csv files from pandas
+        """
         self.outpath = outpath
         self.last_runpath = runpath
         month = datetime.today().strftime('%Y%m%d')[4:6]
@@ -21,10 +28,14 @@ class Finra(object):
 
     @property
     def last_run(self):
-        """Get the last run date from the text file"""
-        with open(self.last_runpath + r'\last_run.txt', 'r+') as file:
-            last = file.readlines()[0]
-        return last
+        """Get the last run date from the text file name"""
+        # Get the files in the directory in list
+        files = os.listdir(self.outpath)
+        # Sort the list by reverse
+        files.sort(reverse=True)
+        # Return the date from the file
+        # print(files[0][-12:-4])
+        return files[0][-12:-4]
 
     @staticmethod
     def get_files(url: str, dtype: str, outpath: str):
@@ -67,18 +78,20 @@ class Finra(object):
         date_today = datetime.today().strftime('%Y%m%d')
         time_now = datetime.now().strftime("%H:%M:%S")
         # Only download if the time now is > 5 P.M
-        if date_today != self.last_run or int(time_now[0:2]) >= 17:
+        print(str(date_today) == self.last_run)
+        print(str(date_today))
+        if date_today != self.last_run and int(time_now[0:2]) >= 17:
             print('Downloading files from Finra')
 
-            self.get_files(url=self.finra_url, dtype=Finra.filetype, outpath=self.outpath)
+            # self.get_files(url=self.finra_url, dtype=Finra.filetype, outpath=self.outpath)
+            pass
 
-            # Open the last_run file and write the latest download date
-            with open(r'E:\Github\dpool\bin\last_run.txt', 'w+') as file:
-                file.write(date_today)
-
+        for i in months.values():
+            url = "http://regsho.finra.org/regsho-{}.html".format(i)
+            self.get_files(url=url, dtype=Finra.filetype, outpath=self.outpath)
         return 1
 
-    def combine_data(self, interval: int = 25, volume_filter: int = 1000000):
+    def filter_by_vol(self, interval: int = 7, volume_filter: int = 1000000):
         """
         Method to perform the data operations on the downloaded data to get total volume over interval
         :param volume_filter: Integer to filter the volumnes
@@ -116,10 +129,63 @@ class Finra(object):
 
         return ans
 
+    def data_organize(self, filter_volume: int = 10 ** 6):
+        """Funtion to organize the data where the tickers are column and unique id"""
+        # Read the files to a list
+        files = os.listdir(self.outpath)
+        # Sort the list of the files
+        files.sort(reverse=True)
+        # Column names for the dataframe
+        # columns = [x[9:13] + '-' + x[13:15] + '-' + x[15:17] for x in files]
+        # Make a empty dataframe for short volume
+        dsv = pd.DataFrame()
+        # Make an empty dataframe for the Total Volume
+        dtv = pd.DataFrame()
+        # Read the first file to get the tickers with volumen > filter volume into temp datframe
+        temp = pd.read_csv(self.outpath + '\\' + files[0], sep='|')
+        # Filter the stocks where volumne > filter val
+        temp = temp[temp['TotalVolume'] > filter_volume]
+        dsv['Symbol'] = temp['Symbol']
+        dtv['Symbol'] = temp['Symbol']
+
+        for indx, file in enumerate(files):
+            # Column name for the file read in the database
+            column_name = file[9:13] + '-' + file[13:15] + '-' + file[15:17]
+            # Read the csv file into temp2 datframe
+            temp2 = pd.read_csv(self.outpath + '\\' + file, sep='|')
+            # Filter the stocks where volumne > filter val
+            temp2 = temp2[temp2['Symbol'].isin(list(temp['Symbol']))]
+            # Missing values check
+            if len(temp['Symbol']) != len(temp2['Symbol']):
+                missing = list(set(temp['Symbol']).difference(set(temp2['Symbol'])))
+                for ticker in missing:
+                    temp2 = temp2.append({'Symbol': ticker,
+                                          'Date': file[9:17],
+                                          'ShortVolume': nan,
+                                          'ShortExemptVolume': nan,
+                                          'TotalVolume': nan,
+                                          'Market': nan}, ignore_index=True)
+            # Sort the value by the Symbol
+            temp2.sort_values(by='Symbol', inplace=True)
+            # Reset the index (must be done)
+            temp2.reset_index(inplace=True, drop=True)
+            # Append the data to the dataframes
+            dsv[column_name] = temp2['ShortVolume']
+            dtv[column_name] = temp2['TotalVolume']
+
+        # Save the data to the csvs after looping
+
+        dsv.to_csv(r'E:\Github\dpool\bin\ShortVolume.csv', index=False)
+        dsv.to_csv(r'E:\Github\dpool\bin\TotalVolume.csv', index=False)
+
 
 if __name__ == '__main__':
+    t1 = time()
+
     cls = Finra(outpath=r'E:\Github\dpool\bin\data', runpath=r'E:\Github\dpool\bin')
     cls.get_data()
-    df = cls.combine_data()
+    # df = cls.filter_by_vol(interval=7, volume_filter=10000000)
+    # df.to_csv(r'E:\Github\dpool\bin\filter_data.csv', index=False)
+    # cls.data_organize()
 
-    pass
+    print('Time = ', time() - t1)

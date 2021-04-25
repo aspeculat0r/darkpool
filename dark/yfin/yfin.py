@@ -1,7 +1,6 @@
 import yfinance as yf
 import pandas as pd
 from dark.tdresearch import *
-from dark.data import combine_data
 
 
 def get_volume(symbols: list or pd.DataFrame, dfc_ret: pd.DataFrame, dfv_ret: pd.DataFrame, outpath: str):
@@ -55,7 +54,7 @@ if __name__ == '__main__':
 
     print('Running Finance')
 
-    x = combine_data()['Symbol']
+    # x = combine_data()['Symbol']
 
     get_volume(symbols=x, dfv_ret=pd.DataFrame(),
                dfc_ret=pd.DataFrame(), outpath=r'E:\Github\dpool\bin')

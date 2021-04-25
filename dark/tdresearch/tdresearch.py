@@ -1,16 +1,24 @@
 from bs4 import BeautifulSoup as bs
 import requests
-from dark.funcs import *
+from pandas import DataFrame
 from math import nan
 
 
-def get_iown(df: pd.DataFrame):
-    """Function to get the institutional ownership from TDA research website"""
+def get_iown(df: DataFrame):
+    """
+    Function to get the institutional ownership from TDA research website
+    :param df: dataframe of the stocks there is column Symbol
+    :return:
+    """
+
+    # Dataframe must have the 'Symbol Column
+    assert ('Symbol' in df.columns), 'Dataframe must have Symbol Column'
 
     # Make a new column  of Iown and assign a value of 1
     df['Iown'] = 0
     # Get a series of all the symbols in dataframe
     symbols = df.Symbol
+
     print("Getting Market Cap")
     # Iterate over the symbols
     for indx, ticker in enumerate(symbols):
@@ -44,7 +52,6 @@ def get_iown(df: pd.DataFrame):
 
 def get_iown_single(symbol: str):
     """Function to get the institutional ownership from TDA research website for a single stock"""
-    print(symbol)
     try:
         # URL for research page
         url = r'https://research.tdameritrade.com/grid/public/research/stocks/fundamentals?symbol={}'.format(symbol)
@@ -67,4 +74,4 @@ def get_iown_single(symbol: str):
 
 if __name__ == '__main__':
 
-    get_iown(return_sorted_df(r'E:\Github\dpool\bin\dfc.csv'))
+    get_iown(DataFrame())
